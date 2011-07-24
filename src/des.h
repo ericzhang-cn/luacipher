@@ -137,4 +137,8 @@ int s_map[8][4][16] = {
     }
 };
 
+void des_encrypt(byte *in, byte *out, int inl, int *outl, byte key[]);
+
+void des_decrypt(byte *in, byte *out, int inl, int *outl, byte key[]);
+
 #endif

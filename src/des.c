@@ -109,7 +109,7 @@ static void mapping_p(byte data_in[], byte data_out[]) {
 /* S盒映射 */
 static void mapping_s(byte data_in[], byte data_out[]) {
     int i;
-    int row1, row2, col1, col2, col3, col4, row, col;
+    byte row1, row2, col1, col2, col3, col4, row, col;
     byte out[8];
 
     for(i=0; i<8; i++) {
@@ -146,15 +146,15 @@ static void f(byte r_in[], byte r_out[], byte k[]) {
     mapping_p(medi2, r_out);
 }
 
-/* 分组数据(64位)加解密 */
-static void enc_block(byte in[], byte out[], byte schedule[][6], int act) {
+/* 分组数据(64位)加密 */
+static void enc_block(byte in[], byte out[], byte schedule[][6]) {
     byte medi1[8], medi2[4];
     byte l0[4], r0[4], l1[4], r1[4];
     int i, j;
     
     mapping_ip(in, medi1);
 
-    memcpy(l0, &medi1[4], 4);
+    memcpy(l0, &medi1[0], 4);
     memcpy(r0, &medi1[4], 4);
 
     for(i=0; i<16; i++) {
@@ -170,22 +170,68 @@ static void enc_block(byte in[], byte out[], byte schedule[][6], int act) {
         memcpy(r0, r1, 4);
     }
 
-    memcpy(&medi1[0], l0, 4);
-    memcpy(&medi1[4], r0, 4);
+    memcpy(&medi1[4], l0, 4);
+    memcpy(&medi1[0], r0, 4);
 
     _mapping_ip(medi1, out);
 }
 
+/* 分组数据(64位)解密 */
+static void dec_block(byte in[], byte out[], byte schedule[][6]) {
+    byte medi1[8], medi2[4];
+    byte l0[4], r0[4], l1[4], r1[4];
+    int i, j;
+    
+    mapping_ip(in, medi1);
+
+    memcpy(l0, &medi1[0], 4);
+    memcpy(r0, &medi1[4], 4);
+
+    for(i=15; i>=0; i--) {
+        memcpy(l1, r0, 4);
+
+        f(r0, medi2, schedule[i]);
+        
+        for(j=0; j<4; j++) {
+            r1[j] = l0[j] ^ medi2[j];
+        }
+        
+        memcpy(l0, l1, 4);
+        memcpy(r0, r1, 4);
+    }
+   
+    memcpy(&medi1[4], l0, 4);
+    memcpy(&medi1[0], r0, 4);
+
+    _mapping_ip(medi1, out);
+}
+
+void des_encrypt(byte *in, byte *out, int inl, int *outl, byte key[]){}
+
+void des_decrypt(byte *in, byte *out, int inl, int *outl, byte key[]){}
+
 int main() {
     int i, j;
-    byte key[] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
+    byte key[] = "!@#$%^&*";
+    byte in[] = "linalina";
+    byte out[8];
+    byte out2[8];
     byte schedule[16][6];
-    gen_key_schedule(key, schedule);
-
-    for(i=0; i<16; i++) {
-        for(j=0; j<6; j++) {
-            printf("%x ", schedule[i][j]);
-        }
-        printf("\n");
+    for(j=0; j<8; j++) {
+        printf("%c", in[j]);
     }
+    printf("\n");
+    gen_key_schedule(key, schedule);
+    enc_block(in, out, schedule);
+    dec_block(out, out2, schedule);
+
+    for(j=0; j<8; j++) {
+        printf("%x", out[j]);
+    }
+    printf("\n");
+    
+    for(j=0; j<8; j++) {
+        printf("%c", out2[j]);
+    }
+    printf("\n");
 }
