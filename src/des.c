@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 #include "des.h"
@@ -48,7 +49,7 @@ static void shift_key(byte key[], int round) {
         bit2 = get_bit(key[3], 4);
         
         for(i=0; i<7; i++) {
-            key[i] << 1;
+            key[i] = key[i] << 1;
             set_bit(&key[i], 7, get_bit(key[i + 1], 0));
         }
 
@@ -61,7 +62,7 @@ static void shift_key(byte key[], int round) {
         bit4 = get_bit(key[3], 5);
         
         for(i=0; i<7; i++) {
-            key[i] << 2;
+            key[i] = key[i] << 2;
             set_bit(&key[i], 6, get_bit(key[i + 1], 0));
             set_bit(&key[i], 7, get_bit(key[i + 1], 1));
         }
@@ -74,20 +75,110 @@ static void shift_key(byte key[], int round) {
 }
 
 /* 生成Key Schedule */
-void gen_key_schedule(byte key[], byte schedule[][6]) {
+static void gen_key_schedule(byte key[], byte schedule[][6]) {
     byte choice1_key[7];
     int i;
+    
     mapping_pc1(key, choice1_key);
-
     for(i=0; i<16; i++) {
         shift_key(choice1_key, i);
         mapping_pc2(choice1_key, schedule[i]);
     }
 }
 
+/* 明文初始置换(IP) */
+static void mapping_ip(byte data_in[], byte data_out[]) {
+    mapping(data_in, data_out, ip_map, 8);
+}
+
+/* 明文初始逆置换(IP-1) */
+static void _mapping_ip(byte data_in[], byte data_out[]) {
+    mapping(data_in, data_out, _ip_map, 8);
+}
+
+/* E盒扩展置换(E) */
+static void mapping_e(byte data_in[], byte data_out[]) {
+    mapping(data_in, data_out, e_map, 6);
+}
+
+/* P盒压缩置换(P) */
+static void mapping_p(byte data_in[], byte data_out[]) {
+    mapping(data_in, data_out, p_map, 4);
+}
+
+/* S盒映射 */
+static void mapping_s(byte data_in[], byte data_out[]) {
+    int i;
+    int row1, row2, col1, col2, col3, col4, row, col;
+    byte out[8];
+
+    for(i=0; i<8; i++) {
+        row1 = get_bit(data_in[(i * 6) / 8], (i * 6) % 8);
+        row2 = get_bit(data_in[(i * 6 + 5) / 8], (i * 6 + 5) % 8);
+        col1 = get_bit(data_in[(i * 6 + 1) / 8], (i * 6 + 1) % 8);
+        col2 = get_bit(data_in[(i * 6 + 2) / 8], (i * 6 + 2) % 8);
+        col3 = get_bit(data_in[(i * 6 + 3) / 8], (i * 6 + 3) % 8);
+        col4 = get_bit(data_in[(i * 6 + 4) / 8], (i * 6 + 4) % 8);
+
+        row = (row1 << 1) | row2;
+        col = (col1 << 3) | (col2 << 2) | (col3 << 1) | col4;
+
+        out[i] = s_map[i][row][col];
+    }
+
+    for(i=0; i<4; i++) {
+        data_out[i] = (out[i * 2] << 4) | out[i * 2 + 1];
+    }
+}
+
+/* 加密函数F，用于每轮半侧32位数据加密 */
+static void f(byte r_in[], byte r_out[], byte k[]) {
+    byte medi1[6], medi2[4];
+    int i;
+    
+    mapping_e(r_in, medi1);
+
+    for(i=0; i<6; i++) {
+        medi1[i] ^= k[i];
+    }
+
+    mapping_s(medi1, medi2);
+    mapping_p(medi2, r_out);
+}
+
+/* 分组数据(64位)加解密 */
+static void enc_block(byte in[], byte out[], byte schedule[][6], int act) {
+    byte medi1[8], medi2[4];
+    byte l0[4], r0[4], l1[4], r1[4];
+    int i, j;
+    
+    mapping_ip(in, medi1);
+
+    memcpy(l0, &medi1[4], 4);
+    memcpy(r0, &medi1[4], 4);
+
+    for(i=0; i<16; i++) {
+        memcpy(l1, r0, 4);
+
+        f(r0, medi2, schedule[i]);
+        
+        for(j=0; j<4; j++) {
+            r1[j] = l0[j] ^ medi2[j];
+        }
+        
+        memcpy(l0, l1, 4);
+        memcpy(r0, r1, 4);
+    }
+
+    memcpy(&medi1[0], l0, 4);
+    memcpy(&medi1[4], r0, 4);
+
+    _mapping_ip(medi1, out);
+}
+
 int main() {
     int i, j;
-    byte key[] = "87654321";
+    byte key[] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
     byte schedule[16][6];
     gen_key_schedule(key, schedule);
 
