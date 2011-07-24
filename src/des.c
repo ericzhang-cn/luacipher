@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "des.h"
 
@@ -92,7 +91,7 @@ static void mapping_ip(byte data_in[], byte data_out[]) {
 }
 
 /* 明文初始逆置换(IP-1) */
-static void _mapping_ip(byte data_in[], byte data_out[]) {
+static void mapping_ip_inverse(byte data_in[], byte data_out[]) {
     mapping(data_in, data_out, _ip_map, 8);
 }
 
@@ -173,7 +172,7 @@ static void enc_block(byte in[], byte out[], byte schedule[][6]) {
     memcpy(&medi1[4], l0, 4);
     memcpy(&medi1[0], r0, 4);
 
-    _mapping_ip(medi1, out);
+    mapping_ip_inverse(medi1, out);
 }
 
 /* 分组数据(64位)解密 */
@@ -203,35 +202,46 @@ static void dec_block(byte in[], byte out[], byte schedule[][6]) {
     memcpy(&medi1[4], l0, 4);
     memcpy(&medi1[0], r0, 4);
 
-    _mapping_ip(medi1, out);
+    mapping_ip_inverse(medi1, out);
 }
 
-void des_encrypt(byte *in, byte *out, int inl, int *outl, byte key[]){}
-
-void des_decrypt(byte *in, byte *out, int inl, int *outl, byte key[]){}
-
-int main() {
-    int i, j;
-    byte key[] = "!@#$%^&*";
-    byte in[] = "linalina";
-    byte out[8];
-    byte out2[8];
+/* DES加密 */
+void des_encrypt(byte *in, byte *out, int inl, byte key[]) {
+    int block_nums = inl / 8;
+    int tail_nums = inl % 8;
+    int i;
     byte schedule[16][6];
-    for(j=0; j<8; j++) {
-        printf("%c", in[j]);
-    }
-    printf("\n");
-    gen_key_schedule(key, schedule);
-    enc_block(in, out, schedule);
-    dec_block(out, out2, schedule);
+    byte in_block[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    byte out_block[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-    for(j=0; j<8; j++) {
-        printf("%x", out[j]);
+    gen_key_schedule(key, schedule);
+
+    for(i=0; i<block_nums; i++) {
+        memcpy(in_block, &in[i * 8], 8);
+        enc_block(in_block, out_block, schedule);
+        memcpy(&out[i * 8], out_block, 8);
     }
-    printf("\n");
-    
-    for(j=0; j<8; j++) {
-        printf("%c", out2[j]);
+
+    if(tail_nums > 0) {
+        memcpy(in_block, &in[i * 8], tail_nums);
+        enc_block(in_block, out_block, schedule);
+        memcpy(&out[i * 8], out_block, 8);
     }
-    printf("\n");
+}
+
+/* DES解密 */
+void des_decrypt(byte *in, byte *out, int inl, byte key[]) {
+    int block_nums = inl / 8;
+    int i;
+    byte schedule[16][6];
+    byte in_block[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    byte out_block[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    gen_key_schedule(key, schedule);
+
+    for(i=0; i<block_nums; i++) {
+        memcpy(in_block, &in[i * 8], 8);
+        dec_block(in_block, out_block, schedule);
+        memcpy(&out[i * 8], out_block, 8);
+    }
 }

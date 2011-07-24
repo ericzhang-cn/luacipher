@@ -1,9 +1,6 @@
 #ifndef _DES_H
 #define _DES_H
 
-#define ENC 1
-#define DEC 2
-
 typedef unsigned char byte;
 
 int byte_map[8] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
@@ -137,8 +134,8 @@ int s_map[8][4][16] = {
     }
 };
 
-void des_encrypt(byte *in, byte *out, int inl, int *outl, byte key[]);
+void des_encrypt(byte *in, byte *out, int inl, byte key[]);
 
-void des_decrypt(byte *in, byte *out, int inl, int *outl, byte key[]);
+void des_decrypt(byte *in, byte *out, int inl, byte key[]);
 
 #endif
