@@ -67,58 +67,58 @@ static int b64_decode (lua_State *L) {
 }
 
 static int des_encrypt (lua_State *L) {
-    const char* in = luaL_checkstring(L, 1);
-    const char* key = luaL_checkstring(L, 2);
+    const byte* in = (const byte *)luaL_checkstring(L, 1);
+    const byte* key = (const byte *)luaL_checkstring(L, 2);
     int in_len = lua_strlen(L, 1);
     int out_len = in_len % 8 == 0 ? in_len : in_len + (8 - in_len % 8);
-    char out[out_len + 1];
+    byte out[out_len + 1];
 
     des_ecb_encrypt(in, out, in_len, key);
-    lua_pushlstring(L, out, out_len);
+    lua_pushlstring(L, (char *)out, out_len);
     return 1;
 }
 
 static int des_decrypt (lua_State *L) {
-    const char* in = luaL_checkstring(L, 1);
-    const char* key = luaL_checkstring(L, 2);
+    const byte* in = (const byte *)luaL_checkstring(L, 1);
+    const byte* key = (const byte *)luaL_checkstring(L, 2);
     int in_len = lua_strlen(L, 1);
     int out_len = in_len;
-    char out[out_len + 1];
+    byte out[out_len + 1];
 
     des_ecb_decrypt(in, out, in_len, key);
-    lua_pushlstring(L, out, out_len);
+    lua_pushlstring(L, (char *)out, out_len);
     return 1;
 }
 
 static int tri_des_encrypt (lua_State *L) {
-    const char* in = luaL_checkstring(L, 1);
-    const char* key1 = luaL_checkstring(L, 2);
-    const char* key2 = luaL_checkstring(L, 3);
-    const char* key3 = luaL_checkstring(L, 4);
+    const byte* in = (const byte *)luaL_checkstring(L, 1);
+    const byte* key1 = (const byte *)luaL_checkstring(L, 2);
+    const byte* key2 = (const byte *)luaL_checkstring(L, 3);
+    const byte* key3 = (const byte *)luaL_checkstring(L, 4);
     int in_len = lua_strlen(L, 1);
     int out_len = in_len % 8 == 0 ? in_len : in_len + (8 - in_len % 8);
-    char out1[out_len + 1], out2[out_len + 1], out3[out_len + 1];
+    byte out1[out_len + 1], out2[out_len + 1], out3[out_len + 1];
 
     des_ecb_encrypt(in, out1, in_len, key1);
     des_ecb_encrypt(out1, out2, out_len, key2);
     des_ecb_encrypt(out2, out3, out_len, key3);
-    lua_pushlstring(L, out3, out_len);
+    lua_pushlstring(L, (char *)out3, out_len);
     return 1;
 }
 
 static int tri_des_decrypt (lua_State *L) {
-    const char* in = luaL_checkstring(L, 1);
-    const char* key1 = luaL_checkstring(L, 2);
-    const char* key2 = luaL_checkstring(L, 3);
-    const char* key3 = luaL_checkstring(L, 4);
+    const byte* in = (const byte *)luaL_checkstring(L, 1);
+    const byte* key1 = (const byte *)luaL_checkstring(L, 2);
+    const byte* key2 = (const byte *)luaL_checkstring(L, 3);
+    const byte* key3 = (const byte *)luaL_checkstring(L, 4);
     int in_len = lua_strlen(L, 1);
     int out_len = in_len;
-    char out1[out_len + 1], out2[out_len + 1], out3[out_len + 1];
+    byte out1[out_len + 1], out2[out_len + 1], out3[out_len + 1];
 
     des_ecb_decrypt(in, out1, in_len, key3);
     des_ecb_decrypt(out1, out2, out_len, key2);
     des_ecb_decrypt(out2, out3, out_len, key1);
-    lua_pushlstring(L, out3, out_len);
+    lua_pushlstring(L, (char *)out3, out_len);
     return 1;
 }
 

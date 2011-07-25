@@ -105,8 +105,6 @@ void base64_encode(const char* in, int in_len, char* out) {
             
             counter++;
             break;
-        defalut:
-            break;
     }
 
     out[counter*4] = '\0';

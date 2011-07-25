@@ -35,12 +35,12 @@ or implied, of Eric Zhang.
 
 #include "des.h"
 
-int byte_map[8] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
-int byte_set0_map[8] = {0x7F,0xBF,0xDF,0xEF,0xF7,0xFB,0xFD,0xFE};
-int byte_set1_map[8] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+static int byte_map[8] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+static int byte_set0_map[8] = {0x7F,0xBF,0xDF,0xEF,0xF7,0xFB,0xFD,0xFE};
+static int byte_set1_map[8] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
 
 /* Permuted choice 1 table */
-int pc1_map[56] = {
+static int pc1_map[56] = {
     57,49,41,33,25,17,9,
     1, 58,50,42,34,26,18,
     10,2, 59,51,43,35,27,
@@ -52,7 +52,7 @@ int pc1_map[56] = {
 };
 
 /* Permuted choice 2 table */
-int pc2_map[48] = {
+static int pc2_map[48] = {
     14,17,11,24,1, 5,
     3, 28,15,6, 21,10,
     23,19,12,4, 26,8,
@@ -64,10 +64,10 @@ int pc2_map[48] = {
 };
 
 /* Shift table */
-int key_shift_map[16] = {1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1};
+static int key_shift_map[16] = {1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1};
 
 /* Initial permutation table */
-int ip_map[64] = {
+static int ip_map[64] = {
     58,50,42,34,26,18,10,2,
     60,52,44,36,28,20,12,4,
     62,54,46,38,30,22,14,6,
@@ -79,7 +79,7 @@ int ip_map[64] = {
 };
 
 /* Inverse of the initial permutation table */
-int _ip_map[64] = {
+static int _ip_map[64] = {
     40,8,48,16,56,24,64,32,
     39,7,47,15,55,23,63,31,
     38,6,46,14,54,22,62,30,
@@ -91,7 +91,7 @@ int _ip_map[64] = {
 };
 
 /* E bit selection table */
-int e_map[48] = {
+static int e_map[48] = {
     32,1, 2, 3, 4, 5,
     4, 5, 6, 7, 8, 9,
     8, 9, 10,11,12,13,
@@ -103,7 +103,7 @@ int e_map[48] = {
 };
 
 /* P permutation table */
-int p_map[32] = {
+static int p_map[32] = {
     16,7,20,21,
     29,12,28,17,
     1, 15,23,26,
@@ -115,7 +115,7 @@ int p_map[32] = {
 };
 
 /* S permute choice table */
-int s_map[8][4][16] = {
+static int s_map[8][4][16] = {
     {
         {14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7},
         {0,15,7,4,14,2,13,1,10,6,12,11,9,5,3,8},
@@ -174,7 +174,7 @@ static void set_bit(byte *b, int pos, int value) {
     *b = (value == 0) ? *b & byte_set0_map[pos] : *b | byte_set1_map[pos];
 }
 
-static void mapping(byte in[], byte out[], int mtable[], int size) {
+static void mapping(const byte *in, byte *out, int *mtable, int size) {
     int i, j, bit, map_value, b, pos;
     
     for(i=0; i<size; i++) {
@@ -189,17 +189,17 @@ static void mapping(byte in[], byte out[], int mtable[], int size) {
 }
 
 /* Permuted choice 1 */
-static void mapping_pc1(byte key_in[], byte key_out[]) {
+static void mapping_pc1(const byte *key_in, byte *key_out) {
     mapping(key_in, key_out, pc1_map, 7);
 }
 
 /* Permuted choice 2 */
-static void mapping_pc2(byte key_in[], byte key_out[]) {
+static void mapping_pc2(const byte *key_in, byte *key_out) {
     mapping(key_in, key_out, pc2_map, 6);
 }
 
 /* Shifts */
-static void shift_key(byte key[], int round) {
+static void shift_key(byte *key, int round) {
     int shift = key_shift_map[round];
     int bit1, bit2, bit3, bit4, i;
 
@@ -209,7 +209,9 @@ static void shift_key(byte key[], int round) {
         
         for(i=0; i<7; i++) {
             key[i] = key[i] << 1;
-            set_bit(&key[i], 7, get_bit(key[i + 1], 0));
+            if(i < 6) {
+                set_bit(&key[i], 7, get_bit(key[i + 1], 0));
+            }
         }
 
         set_bit(&key[3], 3, bit1);
@@ -222,8 +224,10 @@ static void shift_key(byte key[], int round) {
         
         for(i=0; i<7; i++) {
             key[i] = key[i] << 2;
-            set_bit(&key[i], 6, get_bit(key[i + 1], 0));
-            set_bit(&key[i], 7, get_bit(key[i + 1], 1));
+            if(i < 6) {
+                set_bit(&key[i], 6, get_bit(key[i + 1], 0));
+                set_bit(&key[i], 7, get_bit(key[i + 1], 1));
+            }
         }
 
         set_bit(&key[3], 2, bit1);
@@ -234,7 +238,7 @@ static void shift_key(byte key[], int round) {
 }
 
 /* Generate key schedule */
-static void gen_key_schedule(byte key[], byte schedule[][6]) {
+static void gen_key_schedule(const byte *key, byte schedule[][6]) {
     byte choice1_key[7];
     int i;
     
@@ -246,27 +250,27 @@ static void gen_key_schedule(byte key[], byte schedule[][6]) {
 }
 
 /* Initial permutation */
-static void mapping_ip(byte data_in[], byte data_out[]) {
+static void mapping_ip(const byte *data_in, byte *data_out) {
     mapping(data_in, data_out, ip_map, 8);
 }
 
 /* Inverse of initial permutation */
-static void mapping_ip_inverse(byte data_in[], byte data_out[]) {
+static void mapping_ip_inverse(const byte *data_in, byte *data_out) {
     mapping(data_in, data_out, _ip_map, 8);
 }
 
 /* E bit selection */
-static void mapping_e(byte data_in[], byte data_out[]) {
+static void mapping_e(const byte *data_in, byte *data_out) {
     mapping(data_in, data_out, e_map, 6);
 }
 
 /* P permutation */
-static void mapping_p(byte data_in[], byte data_out[]) {
+static void mapping_p(const byte *data_in, byte *data_out) {
     mapping(data_in, data_out, p_map, 4);
 }
 
 /* S permute choice */
-static void mapping_s(byte data_in[], byte data_out[]) {
+static void mapping_s(const byte *data_in, byte *data_out) {
     int i;
     byte row1, row2, col1, col2, col3, col4, row, col;
     byte out[8];
@@ -291,7 +295,7 @@ static void mapping_s(byte data_in[], byte data_out[]) {
 }
 
 /* Cipher Function f */
-static void f(byte r_in[], byte r_out[], byte k[]) {
+static void f(const byte *r_in, byte *r_out, const byte *k) {
     byte medi1[6], medi2[4];
     int i;
     
@@ -306,8 +310,8 @@ static void f(byte r_in[], byte r_out[], byte k[]) {
 }
 
 /* Encrypt data block with 64bit */
-static void enc_block(byte in[], byte out[], byte schedule[][6]) {
-    byte medi1[8], medi2[4];
+static void enc_block(const byte *in, byte *out, byte schedule[][6]) {
+    byte medi1[8] = "\x00\x00\x00\x00\x00\x00\x00\x00", medi2[4] = "\x00\x00\x00\x00";
     byte l0[4], r0[4], l1[4], r1[4];
     int i, j;
     
@@ -336,8 +340,8 @@ static void enc_block(byte in[], byte out[], byte schedule[][6]) {
 }
 
 /* Decrypt data block with 64bit */
-static void dec_block(byte in[], byte out[], byte schedule[][6]) {
-    byte medi1[8], medi2[4];
+static void dec_block(const byte *in, byte *out, byte schedule[][6]) {
+    byte medi1[8] = "\x00\x00\x00\x00\x00\x00\x00\x00", medi2[4] = "\x00\x00\x00\x00";
     byte l0[4], r0[4], l1[4], r1[4];
     int i, j;
     
