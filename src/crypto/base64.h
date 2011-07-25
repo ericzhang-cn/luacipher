@@ -1,5 +1,5 @@
-#ifndef BASE64_H
-#define BASE64_H
+#ifndef BASE64_H_
+#define BASE64_H_
 
 void base64_encode(const char* in, int in_len, char* out);
 
