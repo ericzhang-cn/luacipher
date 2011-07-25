@@ -3,8 +3,8 @@
 
 typedef unsigned char byte;
 
-void des_encrypt(byte *in, byte *out, int inl, byte key[]);
+void des_ecb_encrypt(const byte *in, byte *out, int inl, const byte *key);
 
-void des_decrypt(byte *in, byte *out, int inl, byte key[]);
+void des_ecb_decrypt(const byte *in, byte *out, int inl, const byte *key);
 
 #endif

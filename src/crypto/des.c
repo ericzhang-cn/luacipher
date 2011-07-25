@@ -336,8 +336,8 @@ static void dec_block(byte in[], byte out[], byte schedule[][6]) {
     mapping_ip_inverse(medi1, out);
 }
 
-/* DES加密 */
-void des_encrypt(byte *in, byte *out, int inl, byte key[]) {
+/* DES ECB模式加密 */
+void des_ecb_encrypt(const byte *in, byte *out, int inl, const byte *key) {
     int block_nums = inl / 8;
     int tail_nums = inl % 8;
     int i;
@@ -361,8 +361,8 @@ void des_encrypt(byte *in, byte *out, int inl, byte key[]) {
     }
 }
 
-/* DES解密 */
-void des_decrypt(byte *in, byte *out, int inl, byte key[]) {
+/* DES ECB模式解密 */
+void des_ecb_decrypt(const byte *in, byte *out, int inl, const byte *key) {
     int block_nums = inl / 8;
     int i;
     byte schedule[16][6];
