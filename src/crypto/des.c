@@ -1,3 +1,35 @@
+/*
+The implementation of DES algorithm(http://www.itl.nist.gov/fipspubs/fip46-2.htm).
+
+==============================================================================================
+copyright 2011 Eric Zhang. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are
+permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice, this list of
+       conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright notice, this list
+       of conditions and the following disclaimer in the documentation and/or other materials
+       provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY ERIC ZHANG ''AS IS'' AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ERIC ZHANG OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The views and conclusions contained in the software and documentation are those of the
+authors and should not be interpreted as representing official policies, either expressed
+or implied, of Eric Zhang. 
+==============================================================================================
+*/
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -7,7 +39,7 @@ int byte_map[8] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
 int byte_set0_map[8] = {0x7F,0xBF,0xDF,0xEF,0xF7,0xFB,0xFD,0xFE};
 int byte_set1_map[8] = {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
 
-/* PC1映射表，用于将64位原始密钥置换成56位, 用于密钥初始置换 */
+/* Permuted choice 1 table */
 int pc1_map[56] = {
     57,49,41,33,25,17,9,
     1, 58,50,42,34,26,18,
@@ -19,7 +51,7 @@ int pc1_map[56] = {
     21,13,5, 28,20,12,4
 };
 
-/* PC2映射表，用于将56位密钥置换成48位, 用于Key Schedule置换 */
+/* Permuted choice 2 table */
 int pc2_map[48] = {
     14,17,11,24,1, 5,
     3, 28,15,6, 21,10,
@@ -31,10 +63,10 @@ int pc2_map[48] = {
     46,42,50,36,29,32
 };
 
-/* 密钥移位映射表，用于记录生成Key Schedule过程中每轮的左移位数 */
+/* Shift table */
 int key_shift_map[16] = {1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1};
 
-/* IP映射表，用于明文的初始置换 */
+/* Initial permutation table */
 int ip_map[64] = {
     58,50,42,34,26,18,10,2,
     60,52,44,36,28,20,12,4,
@@ -46,7 +78,7 @@ int ip_map[64] = {
     63,55,47,39,31,23,15,7
 };
 
-/* IP-1映射表，用于明文的逆初始置换 */
+/* Inverse of the initial permutation table */
 int _ip_map[64] = {
     40,8,48,16,56,24,64,32,
     39,7,47,15,55,23,63,31,
@@ -58,7 +90,7 @@ int _ip_map[64] = {
     33,1,41,9, 49,17,57,25
 };
 
-/* E盒 */
+/* E bit selection table */
 int e_map[48] = {
     32,1, 2, 3, 4, 5,
     4, 5, 6, 7, 8, 9,
@@ -70,7 +102,7 @@ int e_map[48] = {
     28,29,30,31,32,1
 };
 
-/* P盒 */
+/* P permutation table */
 int p_map[32] = {
     16,7,20,21,
     29,12,28,17,
@@ -82,7 +114,7 @@ int p_map[32] = {
     22,11,4, 25
 };
 
-/* S盒 */
+/* S permute choice table */
 int s_map[8][4][16] = {
     {
         {14,4,13,1,2,15,11,8,3,10,6,12,5,9,0,7},
@@ -134,17 +166,14 @@ int s_map[8][4][16] = {
     }
 };
 
-/* 获取一个字节中某一位的数据 */
 static int get_bit(byte b, int pos) {
     return (b & byte_map[pos]) == 0x00 ? 0 : 1;
 }
 
-/* 设置一个字节中某一位的数据 */
 static void set_bit(byte *b, int pos, int value) {
     *b = (value == 0) ? *b & byte_set0_map[pos] : *b | byte_set1_map[pos];
 }
 
-/* 根据指定映射表置换 */
 static void mapping(byte in[], byte out[], int mtable[], int size) {
     int i, j, bit, map_value, b, pos;
     
@@ -159,17 +188,17 @@ static void mapping(byte in[], byte out[], int mtable[], int size) {
     }
 }
 
-/* 密钥初始置换(PC1)，使用PC1映射表将64位密钥置换56位 */
+/* Permuted choice 1 */
 static void mapping_pc1(byte key_in[], byte key_out[]) {
     mapping(key_in, key_out, pc1_map, 7);
 }
 
-/* 密钥Key Schedule置换(PC2)，使用PC2映射表将56位密钥置换48位 */
+/* Permuted choice 2 */
 static void mapping_pc2(byte key_in[], byte key_out[]) {
     mapping(key_in, key_out, pc2_map, 6);
 }
 
-/* 用于Key Schedule生成过程中的循环移位 */
+/* Shifts */
 static void shift_key(byte key[], int round) {
     int shift = key_shift_map[round];
     int bit1, bit2, bit3, bit4, i;
@@ -204,7 +233,7 @@ static void shift_key(byte key[], int round) {
     }
 }
 
-/* 生成Key Schedule */
+/* Generate key schedule */
 static void gen_key_schedule(byte key[], byte schedule[][6]) {
     byte choice1_key[7];
     int i;
@@ -216,27 +245,27 @@ static void gen_key_schedule(byte key[], byte schedule[][6]) {
     }
 }
 
-/* 明文初始置换(IP) */
+/* Initial permutation */
 static void mapping_ip(byte data_in[], byte data_out[]) {
     mapping(data_in, data_out, ip_map, 8);
 }
 
-/* 明文初始逆置换(IP-1) */
+/* Inverse of initial permutation */
 static void mapping_ip_inverse(byte data_in[], byte data_out[]) {
     mapping(data_in, data_out, _ip_map, 8);
 }
 
-/* E盒扩展置换(E) */
+/* E bit selection */
 static void mapping_e(byte data_in[], byte data_out[]) {
     mapping(data_in, data_out, e_map, 6);
 }
 
-/* P盒压缩置换(P) */
+/* P permutation */
 static void mapping_p(byte data_in[], byte data_out[]) {
     mapping(data_in, data_out, p_map, 4);
 }
 
-/* S盒映射 */
+/* S permute choice */
 static void mapping_s(byte data_in[], byte data_out[]) {
     int i;
     byte row1, row2, col1, col2, col3, col4, row, col;
@@ -261,7 +290,7 @@ static void mapping_s(byte data_in[], byte data_out[]) {
     }
 }
 
-/* 加密函数F，用于每轮半侧32位数据加密 */
+/* Cipher Function f */
 static void f(byte r_in[], byte r_out[], byte k[]) {
     byte medi1[6], medi2[4];
     int i;
@@ -276,7 +305,7 @@ static void f(byte r_in[], byte r_out[], byte k[]) {
     mapping_p(medi2, r_out);
 }
 
-/* 分组数据(64位)加密 */
+/* Encrypt data block with 64bit */
 static void enc_block(byte in[], byte out[], byte schedule[][6]) {
     byte medi1[8], medi2[4];
     byte l0[4], r0[4], l1[4], r1[4];
@@ -306,7 +335,7 @@ static void enc_block(byte in[], byte out[], byte schedule[][6]) {
     mapping_ip_inverse(medi1, out);
 }
 
-/* 分组数据(64位)解密 */
+/* Decrypt data block with 64bit */
 static void dec_block(byte in[], byte out[], byte schedule[][6]) {
     byte medi1[8], medi2[4];
     byte l0[4], r0[4], l1[4], r1[4];
@@ -336,7 +365,7 @@ static void dec_block(byte in[], byte out[], byte schedule[][6]) {
     mapping_ip_inverse(medi1, out);
 }
 
-/* DES ECB模式加密 */
+/* Encrypt(ECB mode) */
 void des_ecb_encrypt(const byte *in, byte *out, int inl, const byte *key) {
     int block_nums = inl / 8;
     int tail_nums = inl % 8;
@@ -361,7 +390,7 @@ void des_ecb_encrypt(const byte *in, byte *out, int inl, const byte *key) {
     }
 }
 
-/* DES ECB模式解密 */
+/* Decrypt(ECB mode) */
 void des_ecb_decrypt(const byte *in, byte *out, int inl, const byte *key) {
     int block_nums = inl / 8;
     int i;
